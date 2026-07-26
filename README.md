@@ -5,15 +5,19 @@ Docker Compose stacks for my home server **odin**, deployed by [Komodo](https://
 ## Layout
 
 ```
-stacks/<name>/compose.yaml   # the stack
+stacks/<name>/compose.yml    # the stack
 stacks/<name>/env.komodo     # what to paste into Komodo's Environment field
 komodo/                      # Komodo itself — bootstrap only, NOT managed by Komodo
 ```
 
+Files are named `compose.yml`, not `compose.yaml`. Komodo defaults its File Paths field to
+`compose.yml`, so matching it means the field can be left alone on every stack.
+
 ## How deploys work
 
-Komodo clones this repo into `/opt/komodo/repos/` on odin and runs compose from there.
-**There is no working copy on the server** — edit here, push, then deploy.
+Komodo clones this repo to `/opt/stacks/<stack-name>/` on odin and runs compose from the
+stack's `run_directory` inside that clone. **There is no working copy on the server** —
+edit here, push, then deploy.
 
 ```
 edit → push → Komodo UI → Deploy
@@ -41,9 +45,13 @@ and Mongo's password cannot be a secret stored in Mongo.
 
 ## Adding a stack
 
-1. Create `stacks/<name>/compose.yaml` and `env.komodo`. Pin the image to a tag that
+1. Create `stacks/<name>/compose.yml` and `env.komodo`. Pin the image to a tag that
    actually exists — check with `docker manifest inspect`, as not every project publishes
    rolling major tags.
 2. Push.
-3. In Komodo: new Stack → this repo → `run_directory: stacks/<name>` → paste the environment.
-4. Remove the service from the old monolith, then deploy.
+3. In Komodo: new Stack → this repo → `run_directory: stacks/<name>` → paste the
+   environment. Leave File Paths at its `compose.yml` default and Account at `None`
+   (the repo is public).
+4. Remove the service from the old monolith with
+   `docker compose -f /opt/docker-compose.yaml --env-file /opt/docker-compose.env rm -sf <service>`,
+   then deploy. Container names collide otherwise.

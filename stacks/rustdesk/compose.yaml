@@ -1,0 +1,27 @@
+# RustDesk relay pair. Both services share one data directory holding the server
+# key pair (id_ed25519 / id_ed25519.pub) and db_v2.sqlite3.
+#
+# The key pair is pinned by every client that has ever connected — replacing it
+# breaks them all. The host path was renamed /opt/data -> /opt/rustdesk during the
+# migration to Komodo; the directory contents were moved intact, not recreated.
+services:
+  hbbs:
+    image: rustdesk/rustdesk-server:1
+    container_name: hbbs
+    command: hbbs
+    network_mode: host
+    restart: unless-stopped
+    # Ordering only — with host networking hbbs reaches hbbr on localhost.
+    depends_on:
+      - hbbr
+    volumes:
+      - /opt/rustdesk:/root
+
+  hbbr:
+    image: rustdesk/rustdesk-server:1
+    container_name: hbbr
+    command: hbbr
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - /opt/rustdesk:/root

@@ -1,0 +1,15 @@
+services:
+  audiobookshelf:
+    container_name: audiobookshelf
+    # advplyr publishes exact-version tags only — no `2` or `2.35` rolling tags exist.
+    image: ghcr.io/advplyr/audiobookshelf:2.35.1
+    restart: unless-stopped
+    ports:
+      - "13378:80"
+    volumes:
+      - /opt/audiobookshelf/audiobooks:/audiobooks
+      - /opt/audiobookshelf/podcasts:/podcasts
+      - /opt/audiobookshelf/config:/config
+      - /opt/audiobookshelf/metadata:/metadata
+    environment:
+      TZ: ${TZ}

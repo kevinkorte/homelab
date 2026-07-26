@@ -1,0 +1,10 @@
+# Real secret material — never commit.
+# Note: env.komodo files are safe (they contain [[REF]] placeholders, not values).
+.env
+*.env
+
+# Working design docs. Held back until remediation is complete — the current spec
+# documents unfixed weaknesses, which does not belong in a public repo.
+docs/
+
+.DS_Store

@@ -1,0 +1,22 @@
+services:
+  duckdns:
+    # LinuxServer publishes `latest` plus immutable build tags only — there is no
+    # semver or rolling major tag. This is an exact pin and needs a manual bump to
+    # update. Acceptable here: the image is a small script that calls the DuckDNS API.
+    image: lscr.io/linuxserver/duckdns:d67e71cc-ls82
+    container_name: duckdns
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: ${TZ}
+      # Both come from Komodo Variables. SUBDOMAINS is not a credential, but it is
+      # the public hostname — published beside a full service inventory it becomes a
+      # targeted map, so it stays out of this public repo (spec decision D5).
+      SUBDOMAINS: ${DUCKDNS_SUBDOMAIN}
+      TOKEN: ${DUCKDNS_TOKEN}
+      UPDATE_IP: ipv4
+      LOG_FILE: "false"
+    volumes:
+      - /opt/duckdns/config:/config

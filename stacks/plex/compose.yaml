@@ -1,0 +1,21 @@
+services:
+  plex:
+    # Exact version pin — plexinc publishes full version tags. `latest`, `public`
+    # and `plexpass` are all rolling.
+    image: plexinc/pms-docker:1.43.2.10687-563d026ea
+    container_name: plex
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      PLEX_CLAIM: ${PLEX_CLAIM_CODE}
+    # NVIDIA_VISIBLE_DEVICES and NVIDIA_DRIVER_CAPABILITIES were removed here.
+    # They had no effect: the host has no nvidia-container-runtime installed and
+    # this service never had a device reservation, so Plex has always transcoded
+    # on CPU. Restoring GPU support needs the toolkit on the host, the env vars,
+    # AND a deploy.resources.reservations.devices block — the vars alone are inert.
+    volumes:
+      - /srv/plex/config:/config
+      - /mnt/tower-media:/media
+    # /transcode is an anonymous volume declared by the image. Left anonymous:
+    # it is scratch space, recreated empty on every container replacement.

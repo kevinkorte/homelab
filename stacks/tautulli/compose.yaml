@@ -1,0 +1,22 @@
+services:
+  tautulli:
+    # Pinned by digest, not tag. The running container came from an old `latest`
+    # pull (app reports git c7153deb) that does not correspond to any published
+    # release tag, so a tag pin would silently upgrade across an unknown span.
+    # This digest is exactly what was running before the migration.
+    #
+    # To upgrade deliberately, replace this with a release tag, e.g.:
+    #   image: ghcr.io/tautulli/tautulli:v2.17.2
+    image: ghcr.io/tautulli/tautulli@sha256:f66f65c3e5b60b94eb9dc9848fbe983009b4705f1795e4c979b961251c9637ad
+    container_name: tautulli
+    restart: unless-stopped
+    ports:
+      - "8181:8181"
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - /opt/tautulli/config:/config
+    # No depends_on plex. Tautulli is a separate stack precisely so it can be
+    # updated without restarting Plex. It reaches Plex over the host network at
+    # the address in its own config.ini (pms_ip), not by container name, so there
+    # is no compose-level dependency to preserve.

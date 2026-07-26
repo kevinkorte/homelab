@@ -1,10 +1,11 @@
 services:
   netalertx:
     container_name: netalertx
-    # CalVer (year.month.patch). Pinned exactly rather than to `26`: a CalVer major
-    # is not a compatibility boundary, and `26` would roll through every 2026 release
-    # and then silently stop updating in January 2027 with no signal.
-    image: ghcr.io/netalertx/netalertx:26.7.1
+    # `latest` is the stable channel. Deliberately not `26`: NetAlertX uses CalVer,
+    # so a year tag would roll through 2026 and then silently stop updating in
+    # January 2027 with no signal. Rolling by choice — Komodo polls for updates but
+    # never applies them automatically (auto_update=false).
+    image: ghcr.io/netalertx/netalertx:latest
     network_mode: host
     read_only: true
     restart: unless-stopped

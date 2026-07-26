@@ -1,8 +1,11 @@
 services:
   audiobookshelf:
     container_name: audiobookshelf
-    # advplyr publishes exact-version tags only — no `2` or `2.35` rolling tags exist.
-    image: ghcr.io/advplyr/audiobookshelf:2.35.1
+    # `latest` is the stable channel. advplyr publishes no rolling major tag
+    # (`2` and `2.35` do not exist), so it is this or an exact version. Rolling by
+    # choice — Komodo polls for updates but never applies them automatically
+    # (auto_update=false).
+    image: ghcr.io/advplyr/audiobookshelf:latest
     restart: unless-stopped
     ports:
       - "13378:80"

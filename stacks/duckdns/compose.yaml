@@ -1,9 +1,10 @@
 services:
   duckdns:
-    # LinuxServer publishes `latest` plus immutable build tags only — there is no
-    # semver or rolling major tag. This is an exact pin and needs a manual bump to
-    # update. Acceptable here: the image is a small script that calls the DuckDNS API.
-    image: lscr.io/linuxserver/duckdns:d67e71cc-ls82
+    # `latest` is LinuxServer's stable channel (`develop` is the unstable one).
+    # LSIO publishes no semver tags, only `latest` plus immutable build tags.
+    # Rolling by choice — Komodo polls for updates but never applies them
+    # automatically (auto_update=false).
+    image: lscr.io/linuxserver/duckdns:latest
     container_name: duckdns
     network_mode: host
     restart: unless-stopped

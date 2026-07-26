@@ -1,8 +1,9 @@
 services:
   plex:
-    # Exact version pin — plexinc publishes full version tags. `latest`, `public`
-    # and `plexpass` are all rolling.
-    image: plexinc/pms-docker:1.43.2.10687-563d026ea
+    # `public` is Plex's stable channel (`plexpass` is the beta channel). Rolling
+    # by choice: Komodo polls for updates but never applies them automatically
+    # (auto_update=false), so new versions are surfaced and applied on deploy.
+    image: plexinc/pms-docker:public
     container_name: plex
     network_mode: host
     restart: unless-stopped

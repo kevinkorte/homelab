@@ -46,9 +46,15 @@ and Mongo's password cannot be a secret stored in Mongo.
 
 ## Adding a stack
 
-1. Create `stacks/<name>/compose.yaml` and `env.komodo`. Pin the image to a tag that
-   actually exists — check with `docker manifest inspect`, as not every project publishes
-   rolling major tags.
+1. Create `stacks/<name>/compose.yaml` and `env.komodo`. Use the project's **stable
+   rolling tag** — usually `latest`, but check: Plex's is `public` (`latest` tracks the
+   Plex Pass beta channel). Verify the tag exists with `docker manifest inspect`.
+
+   Rolling tags are safe here because every stack runs `auto_update=false` with
+   `poll_for_updates=true`: Komodo surfaces new versions but only applies them when you
+   deploy. Databases are the exception — `mongo`, `mysql` and `influxdb` stay pinned to a
+   major or exact version, because a surprise major there can rewrite data files
+   irreversibly.
 2. Push.
 3. In Komodo: new Stack → this repo → `run_directory: stacks/<name>` →
    `File Paths: compose.yaml` → paste the environment. Account stays `None`

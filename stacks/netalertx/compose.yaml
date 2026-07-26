@@ -1,0 +1,31 @@
+services:
+  netalertx:
+    container_name: netalertx
+    # CalVer (year.month.patch). Pinned exactly rather than to `26`: a CalVer major
+    # is not a compatibility boundary, and `26` would roll through every 2026 release
+    # and then silently stop updating in January 2027 with no signal.
+    image: ghcr.io/netalertx/netalertx:26.7.1
+    network_mode: host
+    read_only: true
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+    # sysctls require NET_ADMIN on host namespace; set on host if needed:
+    # sudo sysctl -w net.ipv4.conf.all.arp_ignore=1 net.ipv4.conf.all.arp_announce=2
+    volumes:
+      - /opt/netalertx:/data
+      - /etc/localtime:/etc/localtime:ro
+    tmpfs:
+      # uid/gid 20211 matches the ownership of /opt/netalertx on the host.
+      - "/tmp:uid=20211,gid=20211,mode=1700,rw,noexec,nosuid,nodev,async,noatime,nodiratime"
+    environment:
+      TZ: ${TZ}
+      LISTEN_ADDR: 0.0.0.0
+      PORT: "20211"

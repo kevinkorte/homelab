@@ -1,0 +1,22 @@
+services:
+  homepage:
+    # v1 tracks the current major (v1.13.2 as of Jul 2026). This project publishes
+    # v-prefixed tags only — plain `1` and `1.13` do not exist in the registry.
+    image: ghcr.io/gethomepage/homepage:v1
+    container_name: homepage
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: ${HOMEPAGE_ALLOWED_HOSTS}
+    volumes:
+      - /opt/homepage/config:/app/config
+    # /var/run/docker.sock is deliberately NOT mounted.
+    #
+    # It was mounted in the old monolith, granting root-equivalent host control for
+    # no benefit: docker.yaml defines no Docker instances and no service in
+    # services.yaml uses `server:`/`container:` widgets. The `resources` info widget
+    # reads host CPU/memory/disk directly and does not need the socket.
+    #
+    # If Docker widgets are ever wanted here, add a read-only docker-socket-proxy
+    # rather than remounting the raw socket.

@@ -1,0 +1,18 @@
+services:
+  uptime-kuma:
+    # Docker Hub :latest is still 1.x; :2 tracks the current major (2.4.0 as of Jul 2026).
+    image: louislam/uptime-kuma:2
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - "uptime-kuma:/app/data"
+
+volumes:
+  # MUST stay external. This volume predates the migration and holds the monitor
+  # database (~845 MB). Without `external`, Compose would create a project-scoped
+  # `uptime-kuma_uptime-kuma` and the app would come up with an empty DB.
+  uptime-kuma:
+    external: true
+    name: uptime-kuma

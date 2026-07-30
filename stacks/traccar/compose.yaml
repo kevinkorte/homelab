@@ -1,0 +1,71 @@
+# Traccar + its MySQL database. These must stay in one stack: traccar reaches the
+# database by container name (jdbc:mysql://traccar-db:3306).
+services:
+  traccar-db:
+    # Pinned to major 9. Was `mysql:lts`, which is a moving target — when the next
+    # LTS ships, that tag walks onto a new major and MySQL can refuse to start
+    # against the old data files. `lts` and `9` are the same image today (9.7.1).
+    image: mysql:9
+    container_name: traccar-db
+    restart: unless-stopped
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_DATABASE: traccar
+      MYSQL_USER: traccar
+      MYSQL_PASSWORD: ${TRACCAR_DB_PASSWORD}
+    volumes:
+      - /opt/traccar/data:/var/lib/mysql
+    # Deliberately NOT `mysqladmin ping`: that returns success even on "Access
+    # denied", because the server merely responded. Verified — it exits 0 with a
+    # wrong password, which would make depends_on: service_healthy meaningless.
+    #
+    # This check proves three things Traccar actually needs: the server accepts
+    # TCP, the traccar user authenticates, and the traccar database exists.
+    # $$ escapes to a literal $ so the container shell reads its own env var.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysql --protocol=tcp -u traccar -p\"$$MYSQL_PASSWORD\" -e 'USE traccar; SELECT 1' >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  traccar:
+    # Pinned to major 6 rather than `latest`. Traccar runs Liquibase schema
+    # migrations against the database on startup, so a 6 -> 7 jump would be a
+    # one-way migration on a 205 MB database. Minor and patch releases still roll.
+    image: traccar/traccar:6
+    container_name: traccar
+    restart: unless-stopped
+    # Was a bare `depends_on: [traccar-db]`, which only waits for the container to
+    # start, not for MySQL to accept connections — so Traccar crash-looped on every
+    # boot until the database finished initializing.
+    depends_on:
+      traccar-db:
+        condition: service_healthy
+    environment:
+      CONFIG_USE_ENVIRONMENT_VARIABLES: "true"
+      DATABASE_DRIVER: com.mysql.cj.jdbc.Driver
+      DATABASE_URL: jdbc:mysql://traccar-db:3306/traccar?zeroDateTimeBehavior=round&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false&allowMultiQueries=true&autoReconnect=true&useUnicode=yes&characterEncoding=UTF-8&sessionVariables=sql_mode=''
+      DATABASE_USER: traccar
+      DATABASE_PASSWORD: ${TRACCAR_DB_PASSWORD}
+      # Only OsmAnd (default port 5055); see https://www.traccar.org/configuration-file
+      PROTOCOLS_ENABLE: osmand
+    healthcheck:
+      test:
+        ["CMD", "wget", "-q", "--spider", "http://localhost:8082/api/health"]
+      interval: 2m
+      timeout: 5s
+      # Reduced from 1h. That was a workaround for the missing database dependency
+      # above — Traccar could sit broken for an hour before being marked unhealthy.
+      # It now waits for a genuinely ready database, so it should be up in seconds.
+      start_period: 3m
+      retries: 3
+    ports:
+      - "8082:8082"
+      - "5055:5055"
+    volumes:
+      - /opt/traccar/logs:/opt/traccar/logs

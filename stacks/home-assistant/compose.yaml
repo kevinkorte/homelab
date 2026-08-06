@@ -1,0 +1,24 @@
+services:
+  home-assistant:
+    # `stable` is Home Assistant's stable release channel — the rolling tag that
+    # matches this repo's policy. (`beta` and `dev` are published separately.)
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - /opt/homeassistant/config:/config
+      # Kept read-only. Present for D-Bus-based integrations; harmless if unused.
+      - /run/dbus:/run/dbus:ro
+    # `privileged: true` was REMOVED here. It is normally only needed to reach a
+    # USB Zigbee/Z-Wave stick or a Bluetooth adapter, and this host has neither:
+    #   - no /dev/serial/by-id, no ttyUSB*, no ttyACM*
+    #   - no /sys/class/bluetooth entries, no Bluetooth USB device
+    #   - every configured integration is network or cloud based (hue, sonos,
+    #     cast, unifi, ecobee, tuya, lg_thinq, ipp, go2rtc, …)
+    # cpuspeed reads /proc, which works without privileges.
+    #
+    # If a USB radio is ever added, prefer an explicit `devices:` mapping over
+    # restoring privileged.

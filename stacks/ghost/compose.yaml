@@ -1,0 +1,120 @@
+# Ghost, its MySQL database, and the Cloudflare Tunnel connector. All three stay in
+# one stack: Ghost reaches the database by container name, and cloudflared reaches
+# Ghost the same way (http://ghost:2368) over this stack's default network.
+#
+# Nothing is published to the host. Unlike every other stack here, there is no
+# `ports:` anywhere — cloudflared's outbound connection to Cloudflare's edge is the
+# only path in, so odin needs no forwarded ports for this to be public.
+services:
+  ghost-db:
+    # Pinned to major 8, NOT 9 like traccar-db. Ghost officially supports MySQL 8
+    # only (https://docs.ghost.org/faq/supported-databases). MySQL 9 is reported
+    # working in the community but is off-support, and this is the database under
+    # a CMS that runs schema migrations on every upgrade — not where to spend the
+    # risk budget for the sake of matching the other stack.
+    #
+    # Verified 2026-09-09: `mysql:8` and `mysql:8.4` resolve to the same digest
+    # (sha256:d28300f0…), so this is effectively an 8.4 LTS pin that will not walk
+    # onto 9 the way `lts` would.
+    image: mysql:8
+    container_name: ghost-db
+    restart: unless-stopped
+    environment:
+      # Same pattern as traccar-db: Ghost never needs root, so no root password is
+      # stored anywhere at all. Consequence to remember at backup time — mysqldump
+      # has to run as the ghost user, not root.
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_DATABASE: ghost
+      MYSQL_USER: ghost
+      MYSQL_PASSWORD: ${GHOST_DB_PASSWORD}
+    volumes:
+      - /opt/ghost/mysql:/var/lib/mysql
+    # No --character-set-server override: MySQL 8 already defaults to utf8mb4,
+    # which is what Ghost requires. Setting it again would just be noise.
+    #
+    # Deliberately NOT `mysqladmin ping`, for the reason documented in
+    # stacks/traccar/compose.yaml: ping exits 0 even on "Access denied", because
+    # the server did respond. This proves the three things Ghost actually needs —
+    # TCP is accepting, the ghost user authenticates, and the ghost database
+    # exists. $$ escapes to a literal $ so the container shell reads its own env.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysql --protocol=tcp -u ghost -p\"$$MYSQL_PASSWORD\" -e 'USE ghost; SELECT 1' >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  ghost:
+    # Pinned to major 6 rather than a rolling tag, for the same reason traccar is
+    # pinned to 6: Ghost runs schema migrations against the database on startup,
+    # so a 6 -> 7 jump is one-way. Minor and patch releases still roll in.
+    image: ghost:6-alpine
+    container_name: ghost
+    restart: unless-stopped
+    # Bare `depends_on` would only wait for the container to start, not for MySQL
+    # to accept connections, which is what crash-looped traccar on every boot.
+    depends_on:
+      ghost-db:
+        condition: service_healthy
+    environment:
+      # The PUBLIC url, baked into generated links, canonical tags, the sitemap,
+      # and outbound email. It is https even though Ghost itself speaks plain
+      # http here — TLS terminates at Cloudflare's edge, and the hop from
+      # cloudflared to this container never leaves the docker network.
+      #
+      # Cheap to change while the blog is empty. Once posts exist and contain
+      # absolute URLs it becomes a content migration, not a config edit.
+      url: https://${GHOST_DOMAIN}
+      NODE_ENV: production
+      database__client: mysql
+      database__connection__host: ghost-db
+      database__connection__port: "3306"
+      database__connection__user: ghost
+      database__connection__password: ${GHOST_DB_PASSWORD}
+      database__connection__database: ghost
+    volumes:
+      # Themes, uploaded images, and generated files. This is the irreplaceable
+      # half of a Ghost backup; /opt/ghost/mysql above is the other half. Both
+      # need to be in whatever host-level backup covers /opt.
+      #
+      # No chown needed on the host directory. Verified by reading the image's
+      # docker-entrypoint.sh: the container starts as root (Config.User is empty)
+      # and does
+      #     find "$GHOST_CONTENT" \! -user node -exec chown node '{}' +
+      #     exec gosu node ...
+      # so it fixes ownership itself, incrementally, then drops privileges.
+      #
+      # DO NOT add `user:` to this service, and DO NOT override `command:`.
+      # That branch is gated on `id -u` being 0 AND the command matching
+      # `node*current/index.js*`. Break either and the chown never runs, leaving
+      # Ghost on a directory it cannot write to.
+      - /opt/ghost/content:/var/lib/ghost/content
+    # No healthcheck on purpose. With `url` set to the public https address,
+    # Ghost 301-redirects a plain http://localhost:2368 probe, so a naive
+    # `wget --spider` returns success even when the app is broken. A check that
+    # passes when the service is down is worse than no check.
+
+  cloudflared:
+    # Rolling tag, per the repo rule that only databases get pinned. Cloudflare
+    # deprecates old connector builds server-side, so staying current is the
+    # safer default here rather than the riskier one.
+    image: cloudflare/cloudflared:latest
+    container_name: ghost-cloudflared
+    restart: unless-stopped
+    depends_on:
+      - ghost
+    # Token-mode tunnel: routing config lives in the Cloudflare dashboard
+    # (Zero Trust > Networks > Tunnels), not in this file. The dashboard's public
+    # hostname entry points at http://ghost:2368, resolved by container name over
+    # this stack's default network.
+    #
+    # --no-autoupdate because the image tag is how this gets updated. Letting the
+    # binary replace itself inside a running container makes the deployed version
+    # untraceable to anything in this repo.
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}

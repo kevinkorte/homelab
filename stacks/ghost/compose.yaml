@@ -76,6 +76,9 @@ services:
       database__connection__user: ghost
       database__connection__password: ${GHOST_DB_PASSWORD}
       database__connection__database: ghost
+      # TEMPORARY: no SMTP configured, so the emailed sign-in code can't be sent.
+      # Remove once mail__* is set up.
+      security__staffDeviceVerification: "false"
     volumes:
       # Themes, uploaded images, and generated files. This is the irreplaceable
       # half of a Ghost backup; /opt/ghost/mysql above is the other half. Both
